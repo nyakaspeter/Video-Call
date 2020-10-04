@@ -1,9 +1,13 @@
 const express = require("express");
+const path = require("path");
 const http = require("http");
 const app = express();
 const server = http.createServer(app);
 const socket = require("socket.io");
 const io = socket(server);
+
+const isDev = process.env.NODE_ENV !== "production";
+const PORT = process.env.PORT || 8000;
 
 const users = {};
 
@@ -51,4 +55,10 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(8000, () => console.log("Server is running on port 8000"));
+app.use(express.static(path.resolve(__dirname, "./client/build")));
+
+app.get("*", function (request, response) {
+  response.sendFile(path.resolve(__dirname, "./client/build", "index.html"));
+});
+
+server.listen(PORT, () => console.log("Server is running on port " + PORT));
