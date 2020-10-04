@@ -1,0 +1,71 @@
+.App {
+  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.Room-id-form {
+  background-color: white;
+  border-radius: 48px;
+  color: #ffffff;
+  font-size: calc(2vmin);
+  padding: 8px;
+}
+
+.Room-id-input {
+  outline: 0;
+  border-radius: 48px;
+  border: 0;
+  font-size: 24px;
+  padding: 8px 24px;
+}
+
+.Join-room-button {
+  outline: 0;
+  background-color: #61dafb;
+  border-radius: 48px;
+  border: 0;
+  color: white;
+  font-size: 24px;
+  padding: 16px 24px;
+}
+.Join-room-button:hover {
+  background-color: #00c8ff;
+}
+
+.Create-room-button {
+  outline: 0;
+  margin-top: 24px;
+  background-color: #4fc26e;
+  border-radius: 48px;
+  border: 0;
+  color: white;
+  font-size: 24px;
+  padding: 24px 32px;
+}
+.Create-room-button:hover {
+  background-color: #18c747;
+}
