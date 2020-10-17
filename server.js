@@ -1,10 +1,9 @@
-const express = require("express");
 const path = require("path");
-const http = require("http");
+const express = require("express");
+
 const app = express();
-const server = http.createServer(app);
-const socket = require("socket.io");
-const io = socket(server);
+const server = require("http").createServer(app);
+const io = require("socket.io")(server);
 
 const isDev = process.env.NODE_ENV !== "production";
 const PORT = process.env.PORT || 8000;

@@ -46,36 +46,33 @@ function Room() {
         socketRef.current.emit("joinRoom", id);
 
         socketRef.current.on("otherUsersInRoom", (users) => {
-          const peers = [];
+          const peerObjs = [];
           users.forEach((userId) => {
             const peer = createPeer(userId, socketRef.current.id, stream);
             peersRef.current.push({
               peerID: userId,
               peer,
             });
-            peers.push({
+            peerObjs.push({
               peerID: userId,
               peer,
             });
           });
-          setPeers(peers);
+          setPeers(peerObjs);
 
           console.log("Other users in room:", users);
         });
 
         socketRef.current.on("userJoined", (payload) => {
           const peer = addPeer(payload.signal, payload.callerID, stream);
-          peersRef.current.push({
-            peerID: payload.callerID,
-            peer,
-          });
 
           const peerObj = {
             peerID: payload.callerID,
             peer,
           };
 
-          setPeers((users) => [...users, peerObj]);
+          peersRef.current.push(peerObj);
+          setPeers([...peersRef.current]);
 
           console.log("User joined the room:", payload.callerID);
         });
@@ -90,9 +87,10 @@ function Room() {
           if (peerObj) {
             peerObj.peer.destroy();
           }
-          const peers = peersRef.current.filter((p) => p.peerID !== id);
-          peersRef.current = peers;
-          setPeers(peers);
+          const peerObjs = peersRef.current.filter((p) => p.peerID !== id);
+
+          peersRef.current = peerObjs;
+          setPeers(peerObjs);
 
           console.log("User left the room:", id);
         });
@@ -142,17 +140,15 @@ function Room() {
           userVideo.current.srcObject
             .getTracks()
             .forEach((track) => track.stop());
-          peersRef.current.forEach((peer) => {
-            console.log(peer.peer);
-          });
         }}
       ></Prompt>
       <div>
         <div className="Video-grid">
           {peers.map((peer) => {
             return (
-              <div className="Peer-video-container">
-                <PeerVideo key={peer.peerID} peer={peer.peer} />
+              <div key={peer.peerID} className="Peer-video-container">
+                <PeerVideo peer={peer.peer} />
+                <div className="Username">{peer.peerID}</div>
               </div>
             );
           })}

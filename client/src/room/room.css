@@ -28,16 +28,16 @@
 }
 
 .Peer-video-container {
-  flex: 0 0 auto;
-  border-radius: 8px;
-  background-color: black;
-  margin: 12px;
+  display: flex;
+  flex-direction: column;
 }
 
 .Peer-video {
+  width: 240px;
 }
 
-.Bottom-bar {
+.Username {
+  background-color: white;
 }
 
 .User-video {
