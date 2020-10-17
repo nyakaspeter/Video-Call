@@ -22,23 +22,28 @@
 }
 
 .Video-grid {
+  display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
 }
 
-.User-video {
-  border: 8px solid rgba(0, 0, 0, 0.301);
-  border-radius: 24px;
+.Peer-video-container {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background-color: black;
   margin: 12px;
-}
-.User-video:hover {
-  border: 8px solid rgba(0, 0, 0, 0.486);
 }
 
 .Peer-video {
-  border: 8px solid rgba(0, 0, 0, 0.301);
-  border-radius: 24px;
-  margin: 12px;
 }
-.Peer-video:hover {
-  border: 8px solid rgba(0, 0, 0, 0.486);
+
+.Bottom-bar {
+}
+
+.User-video {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 240px;
+  border-radius: 8px;
 }

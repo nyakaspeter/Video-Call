@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { Prompt, useParams } from "react-router-dom";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import io from "socket.io-client";
 import Peer from "simple-peer";
@@ -32,9 +32,9 @@ function Room() {
   }
 
   const [peers, setPeers] = useState([]);
+  const peersRef = useRef([]);
   const socketRef = useRef();
   const userVideo = useRef();
-  const peersRef = useRef([]);
 
   useEffect(() => {
     socketRef.current = io.connect("/");
@@ -42,33 +42,59 @@ function Room() {
       .getUserMedia({ video: true, audio: true })
       .then((stream) => {
         userVideo.current.srcObject = stream;
-        socketRef.current.emit("join room", id);
-        socketRef.current.on("all users", (users) => {
+
+        socketRef.current.emit("joinRoom", id);
+
+        socketRef.current.on("otherUsersInRoom", (users) => {
           const peers = [];
-          users.forEach((userID) => {
-            const peer = createPeer(userID, socketRef.current.id, stream);
+          users.forEach((userId) => {
+            const peer = createPeer(userId, socketRef.current.id, stream);
             peersRef.current.push({
-              peerID: userID,
+              peerID: userId,
               peer,
             });
-            peers.push(peer);
+            peers.push({
+              peerID: userId,
+              peer,
+            });
           });
           setPeers(peers);
+
+          console.log("Other users in room:", users);
         });
 
-        socketRef.current.on("user joined", (payload) => {
+        socketRef.current.on("userJoined", (payload) => {
           const peer = addPeer(payload.signal, payload.callerID, stream);
           peersRef.current.push({
             peerID: payload.callerID,
             peer,
           });
 
-          setPeers((users) => [...users, peer]);
+          const peerObj = {
+            peerID: payload.callerID,
+            peer,
+          };
+
+          setPeers((users) => [...users, peerObj]);
+
+          console.log("User joined the room:", payload.callerID);
         });
 
         socketRef.current.on("receiving returned signal", (payload) => {
           const item = peersRef.current.find((p) => p.peerID === payload.id);
           item.peer.signal(payload.signal);
+        });
+
+        socketRef.current.on("userLeft", (id) => {
+          const peerObj = peersRef.current.find((p) => p.peerID === id);
+          if (peerObj) {
+            peerObj.peer.destroy();
+          }
+          const peers = peersRef.current.filter((p) => p.peerID !== id);
+          peersRef.current = peers;
+          setPeers(peers);
+
+          console.log("User left the room:", id);
         });
       });
   }, [id]);
@@ -108,8 +134,30 @@ function Room() {
   }
 
   return (
-    <div className="Room">
-      <div className="Video-grid">
+    <>
+      <Prompt
+        when={true}
+        message={() => {
+          socketRef.current.destroy();
+          userVideo.current.srcObject
+            .getTracks()
+            .forEach((track) => track.stop());
+          peersRef.current.forEach((peer) => {
+            console.log(peer.peer);
+          });
+        }}
+      ></Prompt>
+      <div>
+        <div className="Video-grid">
+          {peers.map((peer) => {
+            return (
+              <div className="Peer-video-container">
+                <PeerVideo key={peer.peerID} peer={peer.peer} />
+              </div>
+            );
+          })}
+        </div>
+
         <video
           className="User-video"
           playsInline
@@ -118,15 +166,11 @@ function Room() {
           ref={userVideo}
         />
 
-        {peers.map((peer, index) => {
-          return <PeerVideo key={index} peer={peer} />;
-        })}
-      </div>
-
-      <CopyToClipboard text={id} onCopy={() => showCopiedToClipboard()}>
+        {/* <CopyToClipboard text={id} onCopy={() => showCopiedToClipboard()}>
         <button className="Room-id-button">{roomIdText}</button>
-      </CopyToClipboard>
-    </div>
+      </CopyToClipboard> */}
+      </div>
+    </>
   );
 }
 
