@@ -28,15 +28,15 @@ io.on("connection", (user) => {
     console.log(roomId + ": user joined (" + user.id + ")");
   });
 
-  user.on("sending signal", (payload) => {
+  user.on("signal", (payload) => {
     io.to(payload.userToSignal).emit("userJoined", {
       signal: payload.signal,
-      callerID: payload.callerID,
+      userId: payload.userId,
     });
   });
 
-  user.on("returning signal", (payload) => {
-    io.to(payload.callerID).emit("receiving returned signal", {
+  user.on("signalBack", (payload) => {
+    io.to(payload.userId).emit("signalReceived", {
       signal: payload.signal,
       id: user.id,
     });

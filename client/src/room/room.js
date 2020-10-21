@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Prompt, useParams } from "react-router-dom";
 import { CopyToClipboard } from "react-copy-to-clipboard";
+import {
+  MdMic,
+  MdMicOff,
+  MdVideocam,
+  MdVideocamOff,
+  MdPersonAdd,
+  MdCallEnd,
+} from "react-icons/md";
 import io from "socket.io-client";
 import Peer from "simple-peer";
 import "./room.css";
@@ -17,44 +25,50 @@ const PeerVideo = (props) => {
   return ref.srcObject ? (
     <></>
   ) : (
-    <video className="Peer-video" playsInline autoPlay ref={ref} />
+    <video className="Video" playsInline autoPlay ref={ref} />
   );
 };
 
 function Room() {
-  let { id } = useParams();
-  const [roomIdText, setRoomIdText] = useState("Room id: " + id);
-
-  function showCopiedToClipboard() {
-    let text = roomIdText;
-    setRoomIdText("Copied room id to clipboard!");
-    setTimeout(setRoomIdText.bind(text, text), 2000);
-  }
-
+  const { roomId } = useParams();
+  const [callTime, setCallTime] = useState(0);
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [camEnabled, setCamEnabled] = useState(true);
   const [peers, setPeers] = useState([]);
   const peersRef = useRef([]);
   const socketRef = useRef();
-  const userVideo = useRef();
+  const streamRef = useRef();
+  const connectedRef = useRef();
+  const timerRef = useRef();
 
   useEffect(() => {
     socketRef.current = io.connect("/");
     navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
+      .getUserMedia({
+        video: true,
+        audio: true,
+        constraints: {
+          video: {
+            width: { ideal: 4096 },
+            height: { ideal: 2160 },
+          },
+        },
+      })
       .then((stream) => {
-        userVideo.current.srcObject = stream;
+        streamRef.current.srcObject = stream;
 
-        socketRef.current.emit("joinRoom", id);
+        socketRef.current.emit("joinRoom", roomId);
 
         socketRef.current.on("otherUsersInRoom", (users) => {
           const peerObjs = [];
           users.forEach((userId) => {
             const peer = createPeer(userId, socketRef.current.id, stream);
             peersRef.current.push({
-              peerID: userId,
+              peerId: userId,
               peer,
             });
             peerObjs.push({
-              peerID: userId,
+              peerId: userId,
               peer,
             });
           });
@@ -64,30 +78,30 @@ function Room() {
         });
 
         socketRef.current.on("userJoined", (payload) => {
-          const peer = addPeer(payload.signal, payload.callerID, stream);
+          const peer = addPeer(payload.signal, payload.userId, stream);
 
           const peerObj = {
-            peerID: payload.callerID,
+            peerId: payload.userId,
             peer,
           };
 
           peersRef.current.push(peerObj);
           setPeers([...peersRef.current]);
 
-          console.log("User joined the room:", payload.callerID);
+          console.log("User joined the room:", payload.userId);
         });
 
-        socketRef.current.on("receiving returned signal", (payload) => {
-          const item = peersRef.current.find((p) => p.peerID === payload.id);
+        socketRef.current.on("signalReceived", (payload) => {
+          const item = peersRef.current.find((p) => p.peerId === payload.id);
           item.peer.signal(payload.signal);
         });
 
         socketRef.current.on("userLeft", (id) => {
-          const peerObj = peersRef.current.find((p) => p.peerID === id);
+          const peerObj = peersRef.current.find((p) => p.peerId === id);
           if (peerObj) {
             peerObj.peer.destroy();
           }
-          const peerObjs = peersRef.current.filter((p) => p.peerID !== id);
+          const peerObjs = peersRef.current.filter((p) => p.peerId !== id);
 
           peersRef.current = peerObjs;
           setPeers(peerObjs);
@@ -95,40 +109,101 @@ function Room() {
           console.log("User left the room:", id);
         });
       });
-  }, [id]);
 
-  function createPeer(userToSignal, callerID, stream) {
-    const peer = new Peer({
-      initiator: true,
-      trickle: false,
-      stream,
-    });
-
-    peer.on("signal", (signal) => {
-      socketRef.current.emit("sending signal", {
-        userToSignal,
-        callerID,
-        signal,
+    function createPeer(userToSignal, userId, stream) {
+      const peer = new Peer({
+        initiator: true,
+        trickle: false,
+        stream,
       });
-    });
 
-    return peer;
+      peer.on("signal", (signal) => {
+        socketRef.current.emit("signal", {
+          userToSignal,
+          userId,
+          signal,
+        });
+
+        onConnected();
+      });
+
+      return peer;
+    }
+
+    function addPeer(incomingSignal, userId, stream) {
+      const peer = new Peer({
+        initiator: false,
+        trickle: false,
+        stream,
+      });
+
+      peer.on("signal", (signal) => {
+        socketRef.current.emit("signalBack", { signal, userId });
+
+        onConnected();
+      });
+
+      peer.signal(incomingSignal);
+
+      return peer;
+    }
+
+    function onConnected() {
+      if (!connectedRef.current) {
+        console.log(`Connected to room: ${roomId}`);
+        connectedRef.current = true;
+        timerRef.current = setInterval(() => {
+          setCallTime((callTime) => callTime + 1);
+        }, 1000);
+      }
+    }
+  }, [roomId]);
+
+  function disconnectFromRoom() {
+    clearInterval(timerRef.current);
+    socketRef.current.close();
+    streamRef.current.srcObject.getTracks().forEach((track) => {
+      track.stop();
+    });
+    peersRef.current = [];
+    setPeers([]);
   }
 
-  function addPeer(incomingSignal, callerID, stream) {
-    const peer = new Peer({
-      initiator: false,
-      trickle: false,
-      stream,
-    });
+  function toggleCam() {
+    streamRef.current.srcObject.getVideoTracks()[0].enabled = !streamRef.current.srcObject.getVideoTracks()[0]
+      .enabled;
+    setCamEnabled(!camEnabled);
+  }
 
-    peer.on("signal", (signal) => {
-      socketRef.current.emit("returning signal", { signal, callerID });
-    });
+  function toggleMic() {
+    streamRef.current.srcObject.getAudioTracks()[0].enabled = !streamRef.current.srcObject.getAudioTracks()[0]
+      .enabled;
+    setMicEnabled(!micEnabled);
+  }
 
-    peer.signal(incomingSignal);
+  function showCopiedToClipboard() {
+    //TODO: Toast
+  }
 
-    return peer;
+  function callTimeToString() {
+    var hours = Math.floor(callTime / 3600);
+    var minutes = Math.floor((callTime - hours * 3600) / 60);
+    var seconds = callTime - hours * 3600 - minutes * 60;
+
+    var hoursText = "";
+    var minutesText = `${minutes}`;
+    var secondsText = `${seconds}`;
+
+    if (hours > 0) {
+      hoursText = `${hours}:`;
+    }
+    if (minutes < 10) {
+      minutesText = "0" + minutes + ":";
+    }
+    if (seconds < 10) {
+      secondsText = "0" + seconds;
+    }
+    return hoursText + minutesText + secondsText;
   }
 
   return (
@@ -136,35 +211,69 @@ function Room() {
       <Prompt
         when={true}
         message={() => {
-          socketRef.current.destroy();
-          userVideo.current.srcObject
-            .getTracks()
-            .forEach((track) => track.stop());
+          socketRef.current.close();
+          streamRef.current.srcObject.getTracks().forEach((track) => {
+            track.stop();
+          });
         }}
       ></Prompt>
-      <div>
+      <div className="Room">
         <div className="Video-grid">
           {peers.map((peer) => {
             return (
-              <div key={peer.peerID} className="Peer-video-container">
+              <div
+                key={peer.peerId}
+                style={{
+                  flex: `0 0 ${100 / (peers.length > 3 ? 3 : peers.length)}%`,
+                }}
+                className="Video-container"
+              >
                 <PeerVideo peer={peer.peer} />
-                <div className="Username">{peer.peerID}</div>
               </div>
             );
           })}
         </div>
 
-        <video
-          className="User-video"
-          playsInline
-          autoPlay
-          muted
-          ref={userVideo}
-        />
+        <div
+          className="User-video-container"
+          style={
+            camEnabled ? { height: "72px", width: "72px" } : { height: "0" }
+          }
+        >
+          <video
+            className="User-video"
+            playsInline
+            autoPlay
+            muted
+            ref={streamRef}
+            height={camEnabled ? 72 : 0}
+          />
+        </div>
 
-        {/* <CopyToClipboard text={id} onCopy={() => showCopiedToClipboard()}>
-        <button className="Room-id-button">{roomIdText}</button>
-      </CopyToClipboard> */}
+        <div className="Toolbar">
+          <CopyToClipboard
+            text={window.location.href}
+            onCopy={() => showCopiedToClipboard()}
+          >
+            <button className="Toolbar-button">
+              <MdPersonAdd />
+            </button>
+          </CopyToClipboard>
+          <button className="Toolbar-button" onClick={toggleCam}>
+            {camEnabled ? <MdVideocam /> : <MdVideocamOff />}
+          </button>
+          <button className="Toolbar-button" onClick={toggleMic}>
+            {micEnabled ? <MdMic /> : <MdMicOff />}
+          </button>
+          <button
+            className="Toolbar-button Endcall-button"
+            onClick={disconnectFromRoom}
+          >
+            <MdCallEnd />
+          </button>
+        </div>
+
+        <div className="Call-time">{callTimeToString()}</div>
       </div>
     </>
   );
