@@ -316,7 +316,13 @@ const UserVideo = (props) => {
         autoPlay
         muted
         ref={props.streamRef}
-        style={props.camEnabled ? {} : { display: "none" }}
+        style={
+          props.camEnabled
+            ? circleView
+              ? {}
+              : { width: "initial", objectFit: "contain" }
+            : { display: "none" }
+        }
       />
     </div>
   );
@@ -348,9 +354,7 @@ const PeerVideo = (props) => {
         playsInline
         autoPlay
         ref={ref}
-        style={
-          fillContainer ? { objectFit: "cover" } : { objectFit: "contain" }
-        }
+        style={fillContainer ? {} : { objectFit: "contain" }}
       />
     </div>
   );
