@@ -311,7 +311,7 @@ const UserVideo = (props) => {
     >
       <video
         onClick={() => setCircleView(!circleView)}
-        className="User-video"
+        className="Video"
         playsInline
         autoPlay
         muted
@@ -344,7 +344,7 @@ const PeerVideo = (props) => {
     >
       <video
         onClick={() => setFillContainer(!fillContainer)}
-        className="Peer-video"
+        className="Video"
         playsInline
         autoPlay
         ref={ref}

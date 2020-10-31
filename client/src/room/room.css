@@ -15,11 +15,6 @@
 .Peer-video-container {
   background-color: transparent;
 }
-.Peer-video {
-  height: 100%;
-  width: 100%;
-}
-
 .User-video-container {
   display: flex;
   position: fixed;
@@ -29,8 +24,9 @@
   justify-content: center;
   overflow: hidden;
 }
-.User-video {
+.Video {
   height: 100%;
+  width: 100%;
 }
 
 .Call-time {
