@@ -1,15 +1,14 @@
 const path = require("path");
 const express = require("express");
-
 const app = express();
 const server = require("http").createServer(app);
 const io = require("socket.io")(server);
 
-const isDev = process.env.NODE_ENV !== "production";
 const PORT = process.env.PORT || 8000;
 
 const rooms = {};
 const userRooms = {};
+const startTimes = {};
 
 io.on("connection", (user) => {
   user.on("joinRoom", (roomId) => {
@@ -26,6 +25,15 @@ io.on("connection", (user) => {
     user.emit("otherUsersInRoom", otherUsersInRoom);
 
     console.log(roomId + ": user joined (" + user.id + ")");
+
+    if (rooms[roomId].length === 2 && !startTimes[roomId]) {
+      startTimes[roomId] = new Date().getTime();
+      io.to(rooms[roomId][0]).emit("startTimer", startTimes[roomId]);
+    }
+
+    if (rooms[roomId].length > 1 && startTimes[roomId]) {
+      user.emit("startTimer", startTimes[roomId]);
+    }
   });
 
   user.on("signal", (payload) => {
@@ -56,6 +64,7 @@ io.on("connection", (user) => {
 
       if (room.length === 0) {
         delete rooms[roomId];
+        delete startTimes[roomId];
         console.log(roomId + ": room closed");
       }
     }
