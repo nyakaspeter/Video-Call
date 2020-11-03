@@ -8,7 +8,7 @@
 }
 
 .App-logo {
-  height: 40vmin;
+  height: 50vmin;
   pointer-events: none;
 }
 
@@ -27,28 +27,22 @@
   }
 }
 
-.Room-id-form {
-  max-width: 80%;
-  background-color: white;
-  border-radius: 48px;
-  color: #ffffff;
-  font-size: calc(2vmin);
-  padding: 8px;
-}
-
 .Room-id-input {
-  background-color: transparent;
+  width: 220px;
+  margin-top: 24px;
+  background-color: white;
   outline: 0;
-  border-radius: 48px;
+  border-radius: 48px 0 0 48px;
   border: 0;
   font-size: 24px;
-  padding: 8px 24px;
+  padding: 16px 24px;
 }
 
 .Join-room-button {
   outline: 0;
+  margin-top: 24px;
   background-color: #61dafb;
-  border-radius: 48px;
+  border-radius: 0 48px 48px 0;
   border: 0;
   color: white;
   font-size: 24px;
@@ -69,11 +63,21 @@
   border: 0;
   color: white;
   font-size: 24px;
-  padding: 24px 32px;
+  padding: 16px 24px;
 }
 .Create-room-button:hover {
   background-color: #18c747;
 }
 .Create-room-button:active {
   background-color: #16a73d;
+}
+
+@media screen and (max-width: 360px) {
+  .Room-id-input {
+    border-radius: 48px;
+  }
+
+  .Join-room-button {
+    border-radius: 48px;
+  }
 }

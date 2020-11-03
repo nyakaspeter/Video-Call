@@ -23,14 +23,16 @@ function App() {
   return (
     <div className="App">
       <img src={logo} className="App-logo" alt="logo" />
-      <form onSubmit={joinRoom} className="Room-id-form">
+      <form onSubmit={joinRoom}>
         <input
           className="Room-id-input"
           placeholder="Please enter room id"
           value={roomId}
           onChange={(e) => setRoomId(e.target.value)}
         ></input>
-        <input className="Join-room-button" type="submit" value="Join" />
+        <button className="Join-room-button" type="submit">
+          Join
+        </button>
       </form>
       <button className="Create-room-button" onClick={createRoom}>
         Create room
