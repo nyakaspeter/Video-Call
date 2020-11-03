@@ -28,6 +28,7 @@
 }
 
 .Room-id-form {
+  max-width: 80%;
   background-color: white;
   border-radius: 48px;
   color: #ffffff;
@@ -36,6 +37,7 @@
 }
 
 .Room-id-input {
+  background-color: transparent;
   outline: 0;
   border-radius: 48px;
   border: 0;
@@ -55,6 +57,9 @@
 .Join-room-button:hover {
   background-color: #00c8ff;
 }
+.Join-room-button:active {
+  background-color: #00a0ff;
+}
 
 .Create-room-button {
   outline: 0;
@@ -68,4 +73,7 @@
 }
 .Create-room-button:hover {
   background-color: #18c747;
+}
+.Create-room-button:active {
+  background-color: #16a73d;
 }

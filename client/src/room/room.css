@@ -13,12 +13,12 @@
   flex-wrap: wrap;
 }
 .Peer-video-container {
-  background-color: transparent;
+  background-color: black;
 }
 .User-video-container {
   display: flex;
   position: fixed;
-  bottom: 0;
+  top: 0;
   right: 0;
   margin: 12px;
   justify-content: center;
@@ -33,7 +33,7 @@
 .Call-time {
   position: fixed;
   left: 0;
-  bottom: 0;
+  top: 0;
   margin: 12px;
   background-color: rgb(20, 20, 20, 0.8);
   color: whitesmoke;
@@ -80,16 +80,84 @@
   background-color: rgb(150, 0, 0, 0.9);
 }
 
-@media only screen and (max-width: 900px) {
-  .Call-time {
-    position: fixed;
-    top: 0;
-    bottom: initial;
-  }
+.Waiting-text {
+  border: 0;
+  color: white;
+  font-size: 32px;
+}
+.Invite-button {
+  outline: 0;
+  margin-top: 24px;
+  background-color: #4fc26e;
+  border-radius: 48px;
+  border: 0;
+  color: white;
+  font-size: 24px;
+  padding: 16px 24px;
+}
+.Invite-button:hover {
+  background-color: #18c747;
+}
+.Invite-button:active {
+  background-color: #16a73d;
+}
 
-  .User-video-container {
-    position: fixed;
-    top: 0;
-    bottom: initial;
-  }
+.Call-ended-text {
+  border: 0;
+  color: white;
+  font-size: 32px;
+}
+.Call-time-text {
+  border: 0;
+  color: white;
+  font-size: 24px;
+}
+.Reconnect-button {
+  outline: 0;
+  margin-top: 24px;
+  background-color: #61dafb;
+  border-radius: 48px;
+  border: 0;
+  color: white;
+  font-size: 24px;
+  padding: 16px 24px;
+}
+.Reconnect-button:hover {
+  background-color: #00c8ff;
+}
+.Reconnect-button:active {
+  background-color: #00a0ff;
+}
+.Home-button {
+  outline: 0;
+  margin-top: 24px;
+  background-color: #4fc26e;
+  border-radius: 48px;
+  border: 0;
+  color: white;
+  font-size: 24px;
+  padding: 16px 24px;
+}
+.Home-button:hover {
+  background-color: #18c747;
+}
+.Home-button:active {
+  background-color: #16a73d;
+}
+
+.Toast {
+  max-width: 80%;
+  position: fixed;
+  bottom: 100px;
+  background-color: rgb(20, 20, 20, 0.8);
+  color: whitesmoke;
+  font-size: 24px;
+  padding: 20px;
+  border-radius: 36px;
+}
+.Toast:hover {
+  background-color: rgb(14, 14, 14, 0.9);
+}
+.Toast:active {
+  background-color: rgb(4, 4, 4, 0.9);
 }

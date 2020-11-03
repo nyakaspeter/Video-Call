@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Prompt, useParams } from "react-router-dom";
+import { Prompt, useHistory, useParams } from "react-router-dom";
 import {
   MdMic,
   MdMicOff,
@@ -8,11 +8,14 @@ import {
   MdPersonAdd,
   MdCallEnd,
 } from "react-icons/md";
+import { UserVideo, PeerVideo } from "./components";
 import io from "socket.io-client";
 import Peer from "simple-peer";
 import "./room.css";
 
 function Room() {
+  const history = useHistory();
+
   // Call state
   const { roomId } = useParams();
   const [peers, setPeers] = useState([]);
@@ -29,8 +32,11 @@ function Room() {
   });
   const [micEnabled, setMicEnabled] = useState(true);
   const [camEnabled, setCamEnabled] = useState(true);
+  const [callStarted, setCallStarted] = useState(false);
+  const [callEnded, setCallEnded] = useState(false);
   const [callTime, setCallTime] = useState(0);
   const timerRef = useRef();
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     socketRef.current = io.connect("/");
@@ -47,7 +53,7 @@ function Room() {
         },
       })
       .then((stream) => {
-        streamRef.current.srcObject = stream;
+        if (streamRef.current) streamRef.current.srcObject = stream;
 
         socketRef.current.emit("joinRoom", roomId);
 
@@ -71,6 +77,8 @@ function Room() {
         });
 
         socketRef.current.on("startTimer", (time) => {
+          setCallStarted(true);
+
           startTime.current = time;
 
           timerRef.current = setInterval(() => {
@@ -110,6 +118,8 @@ function Room() {
           recalculateLayout();
 
           console.log("User left the room:", id);
+
+          if (peersRef.current.length === 0) disconnectFromRoom();
         });
       });
 
@@ -156,7 +166,9 @@ function Room() {
 
   function copyAddressToClipboard() {
     navigator.clipboard.writeText(window.location.href);
-    //TODO: Toast
+
+    setToast("Room link has been copied to clipboard!");
+    setTimeout(() => setToast(null), 3000);
   }
 
   function toggleCam() {
@@ -174,11 +186,14 @@ function Room() {
   function disconnectFromRoom() {
     clearInterval(timerRef.current);
     socketRef.current.close();
-    streamRef.current.srcObject.getTracks().forEach((track) => {
-      track.stop();
-    });
+    socketRef.current.srcObject &&
+      streamRef.current.srcObject.getTracks().forEach((track) => {
+        track.stop();
+      });
     peersRef.current = [];
     setPeers([]);
+
+    setCallEnded(true);
   }
 
   function callTimeToString() {
@@ -254,110 +269,80 @@ function Room() {
   }
 
   return (
-    <>
-      <div className="Room" id="Grid">
-        <div className="Grid" style={{ maxWidth: gridWidth + "px" }}>
-          {peers.map((peer) => {
-            return (
-              <PeerVideo
-                key={peer.peerId}
-                peer={peer.peer}
-                width={videoWidth}
-                height={videoHeight}
-              />
-            );
-          })}
-        </div>
+    <div className="Room">
+      {!callEnded ? (
+        <>
+          {callStarted ? (
+            <div className="Grid" style={{ maxWidth: gridWidth + "px" }}>
+              {peers.map((peer) => {
+                return (
+                  <PeerVideo
+                    key={peer.peerId}
+                    peer={peer.peer}
+                    width={videoWidth}
+                    height={videoHeight}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div>
+              <div className="Waiting-text">Waiting for peers...</div>
+              <button
+                onClick={copyAddressToClipboard}
+                className="Invite-button"
+              >
+                Invite people
+              </button>
+            </div>
+          )}
 
-        <UserVideo streamRef={streamRef} camEnabled={camEnabled} />
+          <UserVideo streamRef={streamRef} camEnabled={camEnabled} />
 
-        <div className="Call-time">{callTimeToString()}</div>
+          <div className="Call-time">{callTimeToString()}</div>
 
-        <div className="Buttons-container">
-          <button onClick={copyAddressToClipboard} className="Button">
-            <MdPersonAdd />
-          </button>
-          <button className="Button" onClick={toggleCam}>
-            {camEnabled ? <MdVideocam /> : <MdVideocamOff />}
-          </button>
-          <button className="Button" onClick={toggleMic}>
-            {micEnabled ? <MdMic /> : <MdMicOff />}
-          </button>
+          <div className="Buttons-container">
+            <button onClick={copyAddressToClipboard} className="Button">
+              <MdPersonAdd />
+            </button>
+            <button className="Button" onClick={toggleCam}>
+              {camEnabled ? <MdVideocam /> : <MdVideocamOff />}
+            </button>
+            <button className="Button" onClick={toggleMic}>
+              {micEnabled ? <MdMic /> : <MdMicOff />}
+            </button>
+            <button
+              className="Button Endcall-button"
+              onClick={disconnectFromRoom}
+            >
+              <MdCallEnd />
+            </button>
+          </div>
+
+          {toast && <div className="Toast">{toast}</div>}
+
+          <Prompt when={true} message={() => disconnectFromRoom()} />
+        </>
+      ) : (
+        <div>
+          <div className="Call-ended-text">The call has ended</div>
+          <div className="Call-time-text">Duration: {callTimeToString()}</div>
+          <br></br>
+
           <button
-            className="Button Endcall-button"
-            onClick={disconnectFromRoom}
+            className="Reconnect-button"
+            onClick={() => window.location.reload()}
           >
-            <MdCallEnd />
+            Reconnect to call
+          </button>
+          <br></br>
+          <button className="Home-button" onClick={() => history.push("/")}>
+            Back to home
           </button>
         </div>
-      </div>
-
-      <Prompt when={true} message={() => disconnectFromRoom()} />
-    </>
+      )}
+    </div>
   );
 }
-
-const UserVideo = (props) => {
-  const [circleView, setCircleView] = useState(true);
-
-  return (
-    <div
-      className="User-video-container"
-      style={
-        circleView
-          ? { width: "72px", height: "72px", borderRadius: "36px" }
-          : { height: "144px", borderRadius: "8px" }
-      }
-    >
-      <video
-        onClick={() => setCircleView(!circleView)}
-        className="Video"
-        playsInline
-        autoPlay
-        muted
-        ref={props.streamRef}
-        style={
-          props.camEnabled
-            ? circleView
-              ? {}
-              : { width: "initial", objectFit: "contain" }
-            : { display: "none" }
-        }
-      />
-    </div>
-  );
-};
-
-const PeerVideo = (props) => {
-  const ref = useRef();
-  const [fillContainer, setFillContainer] = useState(true);
-
-  useEffect(() => {
-    props.peer.on("stream", (stream) => {
-      ref.current.srcObject = stream;
-    });
-  }, [props.peer]);
-
-  return ref.srcObject ? (
-    <></>
-  ) : (
-    <div
-      className="Peer-video-container"
-      style={{
-        width: props.width + "px",
-        height: props.height + "px",
-      }}
-    >
-      <video
-        onClick={() => setFillContainer(!fillContainer)}
-        className="Video"
-        playsInline
-        autoPlay
-        ref={ref}
-        style={fillContainer ? {} : { objectFit: "contain" }}
-      />
-    </div>
-  );
-};
 
 export default Room;
