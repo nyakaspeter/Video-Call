@@ -32,6 +32,8 @@ function Room() {
   });
   const [micEnabled, setMicEnabled] = useState(true);
   const [camEnabled, setCamEnabled] = useState(true);
+  const micEnabledRef = useRef(true);
+  const camEnabledRef = useRef(true);
   const [callStarted, setCallStarted] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
   const [callTime, setCallTime] = useState(0);
@@ -73,7 +75,7 @@ function Room() {
           setPeers(peerObjs);
           recalculateLayout();
 
-          console.log("Other users in room:", users);
+          console.log("Joined room with users", users);
         });
 
         socketRef.current.on("startTimer", (time) => {
@@ -98,7 +100,7 @@ function Room() {
           setPeers([...peersRef.current]);
           recalculateLayout();
 
-          console.log("User joined the room:", payload.userId);
+          console.log("User joined the room", payload.userId);
         });
 
         socketRef.current.on("signalReceived", (payload) => {
@@ -117,7 +119,7 @@ function Room() {
           setPeers(peerObjs);
           recalculateLayout();
 
-          console.log("User left the room:", id);
+          console.log("User left the room", id);
 
           if (peersRef.current.length === 0) disconnectFromRoom();
         });
@@ -127,6 +129,7 @@ function Room() {
       const peer = new Peer({
         initiator: true,
         trickle: false,
+        objectMode: true,
         stream,
       });
 
@@ -138,6 +141,15 @@ function Room() {
         });
       });
 
+      peer.on("connect", () =>
+        peer.send(
+          JSON.stringify({
+            camEnabled: camEnabledRef.current,
+            micEnabled: micEnabledRef.current,
+          })
+        )
+      );
+
       return peer;
     }
 
@@ -145,12 +157,22 @@ function Room() {
       const peer = new Peer({
         initiator: false,
         trickle: false,
+        objectMode: true,
         stream,
       });
 
       peer.on("signal", (signal) => {
         socketRef.current.emit("signalBack", { signal, userId });
       });
+
+      peer.on("connect", () =>
+        peer.send(
+          JSON.stringify({
+            camEnabled: camEnabledRef.current,
+            micEnabled: micEnabledRef.current,
+          })
+        )
+      );
 
       peer.signal(incomingSignal);
 
@@ -172,15 +194,29 @@ function Room() {
   }
 
   function toggleCam() {
+    peersRef.current.forEach((peerObj) => {
+      peerObj.peer.send(
+        JSON.stringify({ camEnabled: !camEnabled, micEnabled })
+      );
+    });
+
     streamRef.current.srcObject.getVideoTracks()[0].enabled = !streamRef.current.srcObject.getVideoTracks()[0]
       .enabled;
-    setCamEnabled(!camEnabled);
+    camEnabledRef.current = !camEnabledRef.current;
+    setCamEnabled(camEnabledRef.current);
   }
 
   function toggleMic() {
+    peersRef.current.forEach((peerObj) => {
+      peerObj.peer.send(
+        JSON.stringify({ camEnabled, micEnabled: !micEnabled })
+      );
+    });
+
     streamRef.current.srcObject.getAudioTracks()[0].enabled = !streamRef.current.srcObject.getAudioTracks()[0]
       .enabled;
-    setMicEnabled(!micEnabled);
+    micEnabledRef.current = !micEnabledRef.current;
+    setMicEnabled(micEnabledRef.current);
   }
 
   function disconnectFromRoom() {
@@ -194,6 +230,7 @@ function Room() {
     setPeers([]);
 
     setCallEnded(true);
+    console.log("Disconnected from room");
   }
 
   function callTimeToString() {
@@ -279,6 +316,7 @@ function Room() {
                   <PeerVideo
                     key={peer.peerId}
                     peer={peer.peer}
+                    peerId={peer.peerId}
                     width={videoWidth}
                     height={videoHeight}
                   />
