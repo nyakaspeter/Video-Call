@@ -50,7 +50,7 @@ export const PeerVideo = (props) => {
       setCamEnabled(msg.camEnabled);
       setMicEnabled(msg.micEnabled);
     });
-  }, [props.peer]);
+  }, [props.peer, props.peerId]);
 
   return ref.srcObject ? (
     <></>

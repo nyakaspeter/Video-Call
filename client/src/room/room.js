@@ -11,6 +11,7 @@ import {
 import { UserVideo, PeerVideo } from "./components";
 import io from "socket.io-client";
 import Peer from "simple-peer";
+import DetectRTC from "detectrtc";
 import "./room.css";
 
 function Room() {
@@ -39,6 +40,7 @@ function Room() {
   const [callTime, setCallTime] = useState(0);
   const timerRef = useRef();
   const [toast, setToast] = useState(null);
+  const [mediaDevicesAccessible, setMediaDevicesAccessible] = useState(true);
 
   useEffect(() => {
     socketRef.current = io.connect("/");
@@ -54,76 +56,90 @@ function Room() {
           },
         },
       })
-      .then((stream) => {
-        if (streamRef.current) streamRef.current.srcObject = stream;
+      .then(
+        (stream) => {
+          if (streamRef.current) streamRef.current.srcObject = stream;
 
-        socketRef.current.emit("joinRoom", roomId);
+          socketRef.current.emit("joinRoom", roomId);
 
-        socketRef.current.on("otherUsersInRoom", (users) => {
-          const peerObjs = [];
-          users.forEach((userId) => {
-            const peer = createPeer(userId, socketRef.current.id, stream);
-            peersRef.current.push({
-              peerId: userId,
-              peer,
+          socketRef.current.on("otherUsersInRoom", (users) => {
+            const peerObjs = [];
+            users.forEach((userId) => {
+              const peer = createPeer(userId, socketRef.current.id, stream);
+              peersRef.current.push({
+                peerId: userId,
+                peer,
+              });
+              peerObjs.push({
+                peerId: userId,
+                peer,
+              });
             });
-            peerObjs.push({
-              peerId: userId,
-              peer,
-            });
+            setPeers(peerObjs);
+            recalculateLayout();
+
+            console.log("Joined room with users", users);
           });
-          setPeers(peerObjs);
-          recalculateLayout();
 
-          console.log("Joined room with users", users);
-        });
+          socketRef.current.on("startTimer", (time) => {
+            setCallStarted(true);
 
-        socketRef.current.on("startTimer", (time) => {
-          setCallStarted(true);
+            startTime.current = time;
 
-          startTime.current = time;
+            timerRef.current = setInterval(() => {
+              setCallTime(new Date().getTime() - startTime.current);
+            }, 1000);
+          });
 
-          timerRef.current = setInterval(() => {
-            setCallTime(new Date().getTime() - startTime.current);
-          }, 1000);
-        });
+          socketRef.current.on("userJoined", (payload) => {
+            const peer = addPeer(payload.signal, payload.userId, stream);
 
-        socketRef.current.on("userJoined", (payload) => {
-          const peer = addPeer(payload.signal, payload.userId, stream);
+            const peerObj = {
+              peerId: payload.userId,
+              peer,
+            };
 
-          const peerObj = {
-            peerId: payload.userId,
-            peer,
-          };
+            peersRef.current.push(peerObj);
+            setPeers([...peersRef.current]);
+            recalculateLayout();
 
-          peersRef.current.push(peerObj);
-          setPeers([...peersRef.current]);
-          recalculateLayout();
+            console.log("User joined the room", payload.userId);
+          });
 
-          console.log("User joined the room", payload.userId);
-        });
+          socketRef.current.on("signalReceived", (payload) => {
+            const item = peersRef.current.find((p) => p.peerId === payload.id);
+            item.peer.signal(payload.signal);
+          });
 
-        socketRef.current.on("signalReceived", (payload) => {
-          const item = peersRef.current.find((p) => p.peerId === payload.id);
-          item.peer.signal(payload.signal);
-        });
+          socketRef.current.on("userLeft", (id) => {
+            const peerObj = peersRef.current.find((p) => p.peerId === id);
+            if (peerObj) {
+              peerObj.peer.destroy();
+            }
+            const peerObjs = peersRef.current.filter((p) => p.peerId !== id);
 
-        socketRef.current.on("userLeft", (id) => {
-          const peerObj = peersRef.current.find((p) => p.peerId === id);
-          if (peerObj) {
-            peerObj.peer.destroy();
-          }
-          const peerObjs = peersRef.current.filter((p) => p.peerId !== id);
+            peersRef.current = peerObjs;
+            setPeers(peerObjs);
+            recalculateLayout();
 
-          peersRef.current = peerObjs;
-          setPeers(peerObjs);
-          recalculateLayout();
+            console.log("User left the room", id);
 
-          console.log("User left the room", id);
-
-          if (peersRef.current.length === 0) disconnectFromRoom();
-        });
-      });
+            if (peersRef.current.length === 0) disconnectFromRoom();
+          });
+        },
+        (error) => {
+          DetectRTC.load(() => {
+            if (
+              !DetectRTC.hasWebcam ||
+              !DetectRTC.isWebsiteHasWebcamPermissions ||
+              !DetectRTC.hasMicrophone ||
+              !DetectRTC.isWebsiteHasMicrophonePermissions
+            ) {
+              setMediaDevicesAccessible(false);
+            }
+          });
+        }
+      );
 
     function createPeer(userToSignal, userId, stream) {
       const peer = new Peer({
@@ -307,75 +323,94 @@ function Room() {
 
   return (
     <div className="Room">
-      {!callEnded ? (
-        <>
-          {callStarted ? (
-            <div className="Grid" style={{ maxWidth: gridWidth + "px" }}>
-              {peers.map((peer) => {
-                return (
-                  <PeerVideo
-                    key={peer.peerId}
-                    peer={peer.peer}
-                    peerId={peer.peerId}
-                    width={videoWidth}
-                    height={videoHeight}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <div>
-              <div className="Waiting-text">Waiting for peers...</div>
+      {mediaDevicesAccessible ? (
+        !callEnded ? (
+          <>
+            {callStarted ? (
+              <div className="Grid" style={{ maxWidth: gridWidth + "px" }}>
+                {peers.map((peer) => {
+                  return (
+                    <PeerVideo
+                      key={peer.peerId}
+                      peer={peer.peer}
+                      peerId={peer.peerId}
+                      width={videoWidth}
+                      height={videoHeight}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div>
+                <div className="Waiting-text">Waiting for peers...</div>
+                <button
+                  onClick={copyAddressToClipboard}
+                  className="Invite-button"
+                >
+                  Invite people
+                </button>
+              </div>
+            )}
+
+            <UserVideo streamRef={streamRef} camEnabled={camEnabled} />
+
+            <div className="Call-time">{callTimeToString()}</div>
+
+            <div className="Buttons-container">
+              <button onClick={copyAddressToClipboard} className="Button">
+                <MdPersonAdd />
+              </button>
+              <button className="Button" onClick={toggleCam}>
+                {camEnabled ? <MdVideocam /> : <MdVideocamOff />}
+              </button>
+              <button className="Button" onClick={toggleMic}>
+                {micEnabled ? <MdMic /> : <MdMicOff />}
+              </button>
               <button
-                onClick={copyAddressToClipboard}
-                className="Invite-button"
+                className="Button Endcall-button"
+                onClick={disconnectFromRoom}
               >
-                Invite people
+                <MdCallEnd />
               </button>
             </div>
-          )}
 
-          <UserVideo streamRef={streamRef} camEnabled={camEnabled} />
+            {toast && <div className="Toast">{toast}</div>}
 
-          <div className="Call-time">{callTimeToString()}</div>
+            <Prompt when={true} message={() => disconnectFromRoom()} />
+          </>
+        ) : (
+          <div>
+            <div className="Call-ended-text">The call has ended</div>
+            <div className="Call-time-text">Duration: {callTimeToString()}</div>
+            <br></br>
 
-          <div className="Buttons-container">
-            <button onClick={copyAddressToClipboard} className="Button">
-              <MdPersonAdd />
-            </button>
-            <button className="Button" onClick={toggleCam}>
-              {camEnabled ? <MdVideocam /> : <MdVideocamOff />}
-            </button>
-            <button className="Button" onClick={toggleMic}>
-              {micEnabled ? <MdMic /> : <MdMicOff />}
-            </button>
             <button
-              className="Button Endcall-button"
-              onClick={disconnectFromRoom}
+              className="Reconnect-button"
+              onClick={() => window.location.reload()}
             >
-              <MdCallEnd />
+              Reconnect to call
+            </button>
+            <br></br>
+            <button className="Home-button" onClick={() => history.push("/")}>
+              Back to home
             </button>
           </div>
-
-          {toast && <div className="Toast">{toast}</div>}
-
-          <Prompt when={true} message={() => disconnectFromRoom()} />
-        </>
+        )
       ) : (
         <div>
-          <div className="Call-ended-text">The call has ended</div>
-          <div className="Call-time-text">Duration: {callTimeToString()}</div>
+          <div className="Call-ended-text">Device error</div>
+          <div className="Call-time-text">
+            Please connect a mic and a webcam, grant the required permissions,
+            then reload the page
+          </div>
+          <div className="Call-time-text"></div>
           <br></br>
 
           <button
-            className="Reconnect-button"
+            className="Home-button"
             onClick={() => window.location.reload()}
           >
-            Reconnect to call
-          </button>
-          <br></br>
-          <button className="Home-button" onClick={() => history.push("/")}>
-            Back to home
+            Reload page
           </button>
         </div>
       )}
