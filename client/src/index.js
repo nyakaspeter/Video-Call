@@ -3,8 +3,8 @@ import ReactDOM from "react-dom";
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 import "./index.css";
 
-import App from "./app/app";
-import Room from "./room/room";
+import App from "./app/App";
+import Room from "./room/Room";
 
 ReactDOM.render(
   <React.StrictMode>
